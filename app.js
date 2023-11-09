@@ -35,6 +35,7 @@ const userSchema = new mongoose.Schema({
   password: String,
   googleId: String,
   facebookId: String,
+  secret: String,
 });
 
 userSchema.plugin(passportLocalMongoose);
@@ -122,11 +123,12 @@ app.get('/login', (req, res) => {
 app.get('/register', (req, res) => {
   res.render('register.ejs');
 });
-app.get('/secrets', (req, res) => {
-  if (req.isAuthenticated()) {
-    res.render('secrets.ejs');
-  } else {
-    res.redirect('/login');
+app.get('/secrets', async (req, res) => {
+  try {
+    const secrets = await User.find({ secret: { $ne: null } }).exec();
+    res.render('secrets.ejs', { userWithSecrets: secrets });
+  } catch (error) {
+    console.log(error);
   }
 });
 app.get('/logout', (req, res) => {
@@ -137,6 +139,14 @@ app.get('/logout', (req, res) => {
       res.redirect('/');
     }
   });
+});
+
+app.get('/submit', (req, res) => {
+  if (req.isAuthenticated()) {
+    res.render('submit.ejs');
+  } else {
+    res.redirect('/login');
+  }
 });
 
 app.post('/register', (req, res) => {
@@ -169,6 +179,21 @@ app.post('/login', async (req, res) => {
       });
     }
   });
+});
+app.post('/submit', async (req, res) => {
+  const newSecret = req.body.secret;
+  try {
+    const foundUser = await User.findById(req.user.id).exec();
+    foundUser.secret = newSecret;
+    try {
+      foundUser.save();
+      res.redirect('/secrets');
+    } catch (error) {
+      console.log(error);
+    }
+  } catch (error) {
+    console.log(err);
+  }
 });
 app.listen(port, () => {
   console.log(`Server is now running on port ${port}`);
